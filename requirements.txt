@@ -1,7 +1,8 @@
 flask
-flask_sqlalchemy
-flask_login
-flask_migrate
+flask-sqlalchemy
+flask-login
+werkzeug
+requests
 python-dotenv
-stripe
+razorpay
 gunicorn
