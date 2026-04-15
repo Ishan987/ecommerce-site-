@@ -8,7 +8,14 @@ import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from dotenv import load_dotenv
 
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+print(API_KEY)
+print(SECRET_KEY)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret123'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///store.db'
@@ -93,23 +100,15 @@ class SavedAddress(db.Model):
 # ─────────────────────────────────────────────────────────────
 MAIL_SENDER   = os.environ.get('MAIL_SENDER')   or 'you@gmail.com'        # <-- YOUR GMAIL
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or 'abcd efgh ijkl mnop'  # <-- 16-CHAR APP PASSWORD
-OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') or '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'
-# ─────────────────────────────────────────────────────────────
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') or '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'
 # PAYPAL CREDENTIALS
-# Get from https://developer.paypal.com → Apps & Credentials
-# Use Sandbox for testing, Live for production
-# ─────────────────────────────────────────────────────────────
-PAYPAL_CLIENT_ID     = os.environ.get('PAYPAL_CLIENT_ID')     or 'AXC9tDHb8vAV5FuhfzR-Xlv5_37k0fzWMib_WmYo7IxVXKJU4pCxDGNeQXEhh3V3Re9Dc0UnbTYEDBNW'
-PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET') or 'ENILj_jTb6NegxwgQZlbAzX6Foc9AFYyMUBnQmSTVxPgdXJo3TqGdum-c4fxEyE4fIdCKp99CBA_FVnJ'
-PAYPAL_BASE_URL      = 'https://api-m.sandbox.paypal.com'  # change to https://api-m.paypal.com for live
+PAYPAL_CLIENT_ID     = os.environ.get('PAYPAL_CLIENT_ID')     
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET') 
+PAYPAL_BASE_URL      = 'https://api-m.sandbox.paypal.com'  
 
-# ─────────────────────────────────────────────────────────────
 # RAZORPAY CREDENTIALS
-# Get from https://dashboard.razorpay.com → Settings → API Keys
-# Use Test keys for development, Live keys for production
-# ─────────────────────────────────────────────────────────────
-RAZORPAY_KEY_ID     = os.environ.get('RAZORPAY_KEY_ID')     or 'rzp_test_SdIamkGQia8TUJ'
-RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET') or 'gTBvSPVolSbM2QZVZCUNDe4i'
+RAZORPAY_KEY_ID     = os.environ.get('RAZORPAY_KEY_ID')     
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET') 
 
 STORE_NAME    = 'MyStore'
 
@@ -2764,13 +2763,48 @@ a{text-decoration:none;color:inherit;}
   box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideIn 0.3s ease;}
 .toast.success{border-color:var(--accent3);}
 @keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+.cart-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:12px;border:1px solid var(--border);transition:all 0.2s;}
+.cart-item:hover{border-color:rgba(255,59,92,0.3);}
+.cart-item-em{font-size:40px;min-width:56px;height:56px;background:var(--surface3);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.cart-item-info{flex:1;}
+.cart-item-name{font-size:14px;font-weight:600;margin-bottom:4px;}
+.cart-item-price{font-size:15px;font-weight:700;color:var(--accent);}
+.cart-item-remove{background:none;border:none;color:var(--gray);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.cart-item-remove:hover{background:rgba(255,59,92,0.15);color:var(--accent);}
+.cart-qty-ctrl{display:flex;align-items:center;gap:6px;background:var(--surface3);border-radius:20px;padding:3px 6px;border:1px solid var(--border2);}
+.qty-btn{background:none;border:none;color:var(--white);font-size:16px;font-weight:700;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.15s;line-height:1;}
+.qty-btn:hover{background:var(--accent);color:#fff;}
+.cart-empty{text-align:center;padding:40px 20px;color:var(--gray);}
+.cart-empty-icon{font-size:48px;display:block;margin-bottom:12px;}
 </style>
 </head>
 <body>
 <nav class="navbar">
   <a href="/" class="brand">My<span>Store</span></a>
   <a href="/" class="nav-back">← Back to Shop</a>
+  <button class="cart-btn" onclick="openCart()" id="cartBtn" style="margin-left:12px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.14);color:#f0f0f8;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;font-size:18px;transition:all 0.2s;">
+    🛒
+    {% if cc > 0 %}<span class="cbadge" id="cartBadge" style="position:absolute;top:-4px;right:-4px;background:#ff3b5c;color:#fff;font-size:11px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #0a0a0f;">{{ cc }}</span>{% endif %}
+  </button>
 </nav>
+<!-- Cart Overlay & Drawer -->
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:900;opacity:0;pointer-events:none;transition:opacity 0.3s;"></div>
+<div class="cart-drawer" id="cartDrawer" style="position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#111118;border-left:1px solid rgba(255,255,255,0.07);z-index:901;display:flex;flex-direction:column;transition:right 0.35s cubic-bezier(0.25,0.46,0.45,0.94);overflow:hidden;">
+  <div style="padding:24px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;background:#18181f;">
+    <div><h3 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;">Your Cart 🛒</h3>
+    <div id="cartCount" style="font-size:13px;color:#7b7b95;margin-top:2px;">{{ cc }} item(s)</div></div>
+    <button onclick="closeCart()" style="background:#1e1e28;border:none;color:#f0f0f8;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;">✕</button>
+  </div>
+  <div class="cart-body" id="cartBody" style="flex:1;overflow-y:auto;padding:20px;">{{ ch|safe }}</div>
+  <div id="cartFooter" style="padding:20px;border-top:1px solid rgba(255,255,255,0.07);background:#18181f;{{ 'display:none' if cc == 0 else '' }}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:14px;color:#7b7b95;">Total</span>
+      <span id="cartTotal" style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;">₹{{ cart_total }}</span>
+    </div>
+    <a href="/checkout"><button style="width:100%;padding:15px;background:linear-gradient(135deg,#ff3b5c,#ff6b35);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;">Checkout →</button></a>
+    <a href="/cart" onclick="closeCart()"><button style="width:100%;padding:12px;background:transparent;color:#f0f0f8;border:1.5px solid rgba(255,255,255,0.14);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px;">🛒 View Full Cart</button></a>
+  </div>
+</div>
 
 <!-- Breadcrumb -->
 <div class="breadcrumb">
@@ -2966,6 +3000,58 @@ function renderHTML(md) {
       el.style.display = 'block';
     });
 })();
+
+function openCart(){
+  document.getElementById('cartOverlay').style.opacity='1';
+  document.getElementById('cartOverlay').style.pointerEvents='all';
+  document.getElementById('cartDrawer').style.right='0';
+}
+function closeCart(){
+  document.getElementById('cartOverlay').style.opacity='0';
+  document.getElementById('cartOverlay').style.pointerEvents='none';
+  document.getElementById('cartDrawer').style.right='-440px';
+}
+function removeFromCart(cartId){
+  fetch('/remove-cart/'+cartId, {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(data){ refreshCart(data); });
+}
+function updateQty(cartId, delta){
+  fetch('/update-cart-qty/'+cartId, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delta:delta})})
+    .then(function(r){ return r.json(); })
+    .then(function(data){ refreshCart(data); });
+}
+function refreshCart(data){
+  if(data.cart_html) document.getElementById('cartBody').innerHTML = data.cart_html;
+  var itemCount = data.cc !== undefined ? data.cc : (data.count !== undefined ? data.count : 0);
+  var cartTotal = data.cart_total !== undefined ? data.cart_total : (data.total !== undefined ? data.total : 0);
+  var badge = document.getElementById('cartBadge');
+  if(itemCount > 0){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.id = 'cartBadge';
+      badge.style.cssText='position:absolute;top:-4px;right:-4px;background:#ff3b5c;color:#fff;font-size:11px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #0a0a0f;';
+      document.getElementById('cartBtn').appendChild(badge);
+    }
+    badge.textContent = itemCount;
+  } else if(badge){ badge.remove(); }
+  var cc = document.getElementById('cartCount');
+  if(cc) cc.textContent = itemCount + ' item(s)';
+  var ct = document.getElementById('cartTotal');
+  if(ct) ct.textContent = '\u20b9' + cartTotal.toLocaleString('en-IN');
+  var cf = document.getElementById('cartFooter');
+  if(cf) cf.style.display = itemCount > 0 ? '' : 'none';
+}
+function addToCartById(id, btn){
+  if(btn){ btn.classList.add('adding'); btn.textContent='Adding\u2026'; }
+  fetch('/add-ajax/'+id, {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(btn){ btn.classList.remove('adding'); btn.innerHTML='🛒 Add to Cart'; }
+      refreshCart(data);
+      openCart();
+    });
+}
 </script>
 </body>
 </html>"""
@@ -5065,8 +5151,16 @@ def product_detail(product_id):
             Product.category == p.category,
             Product.id != p.id
         ).limit(8).all()
+    cc = 0
+    cart_total = 0
+    ch = ''
+    if current_user.is_authenticated:
+        ch, cart_total, cc = build_cart_html(current_user.id)
+    else:
+        ch, cart_total, cc = build_cart_html()
     return render_template_string(
-        PRODUCT_PAGE, p=p, stars=stars, discount_pct=discount_pct, related=related
+        PRODUCT_PAGE, p=p, stars=stars, discount_pct=discount_pct, related=related,
+        cc=cc, ch=ch, cart_total=cart_total, current_user=current_user
     )
 
 

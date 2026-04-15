@@ -2,11 +2,11 @@
 SECRET_KEY=secret123
 
 # ── Email (Gmail App Password) ─────────────────────────
-MAIL_SENDER=you@gmail.com
-MAIL_PASSWORD=abcd efgh ijkl mnop
+MAIL_SENDER=ishanbagga987@gmail.com
+MAIL_PASSWORD=Bagga@98765
 
 # ── OpenRouter AI ──────────────────────────────────────
-OPENROUTER_API_KEY=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
+OPENROUTER_API_KEY=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
 
 # ── PayPal (Sandbox) ───────────────────────────────────
 PAYPAL_CLIENT_ID=AXC9tDHb8vAV5FuhfzR-Xlv5_37k0fzWMib_WmYo7IxVXKJU4pCxDGNeQXEhh3V3Re9Dc0UnbTYEDBNW
