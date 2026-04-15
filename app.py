@@ -98,9 +98,9 @@ class SavedAddress(db.Model):
 # OPTION B – Hard-code directly below (quickest for local dev):
 #   Replace the strings on the two lines below.
 # ─────────────────────────────────────────────────────────────
-MAIL_SENDER   = os.environ.get('MAIL_SENDER')   or 'you@gmail.com'        # <-- YOUR GMAIL
-MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or 'abcd efgh ijkl mnop'  # <-- 16-CHAR APP PASSWORD
-OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') or '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'
+MAIL_SENDER   = os.environ.get('MAIL_SENDER')  
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') 
 # PAYPAL CREDENTIALS
 PAYPAL_CLIENT_ID     = os.environ.get('PAYPAL_CLIENT_ID')     
 PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET') 
