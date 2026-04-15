@@ -86,18 +86,8 @@ class SavedAddress(db.Model):
     is_default = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# ================= EMAIL CONFIG =================
-# ─────────────────────────────────────────────────────────────
-# HOW TO SET YOUR GMAIL CREDENTIALS (choose one option):
-#
-# OPTION A – Environment variables (recommended):
-#   export MAIL_SENDER="you@gmail.com"
-#   export MAIL_PASSWORD="abcd efgh ijkl mnop"   # 16-char App Password
-#   python app.py
-#
-# OPTION B – Hard-code directly below (quickest for local dev):
-#   Replace the strings on the two lines below.
-# ─────────────────────────────────────────────────────────────
+# ================= EMAIL CONFIG =================#
+
 MAIL_SENDER   = os.environ.get('MAIL_SENDER')  
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') 
