@@ -18,7 +18,7 @@ print(API_KEY)
 print(SECRET_KEY)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///store.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///store2.db'
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -31,6 +31,9 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(150), unique=True, nullable=True)
     password_hash = db.Column(db.String(200))
     is_admin = db.Column(db.Boolean, default=False)
+    oauth_provider = db.Column(db.String(50), nullable=True)   # 'google' | 'facebook' | None
+    oauth_id = db.Column(db.String(200), nullable=True)        # provider's user id
+    avatar_url = db.Column(db.String(500), nullable=True)      # profile picture from OAuth
     def set_password(self, p): self.password_hash = generate_password_hash(p)
     def check_password(self, p): return check_password_hash(self.password_hash, p)
 
@@ -101,6 +104,10 @@ RAZORPAY_KEY_ID     = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET') 
 
 STORE_NAME    = 'MyStore'
+
+# ─── GOOGLE OAUTH CREDENTIALS ───────────────────────────────────────────────
+GOOGLE_CLIENT_ID     = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 class Subscriber(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
@@ -847,6 +854,10 @@ PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MyStore – Shop Beyond Boundaries</title>
 <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script>
+/* Anti-flicker: apply saved theme BEFORE any CSS renders */
+(function(){var t=localStorage.getItem('mystore_theme');if(t==='light')document.documentElement.classList.add('light-theme');})();
+</script>
 <style>
 :root{
   --primary:#0a0a0f;
@@ -864,6 +875,95 @@ PAGE = """<!DOCTYPE html>
   --radius-sm:10px;
   --glow:0 0 40px rgba(255,59,92,0.15);
 }
+/* ═══════════════════════════════════════════════════════════
+   LIGHT THEME  –  applied to <html> immediately to prevent FOUC
+   ═══════════════════════════════════════════════════════════ */
+html.light-theme,html.light-theme body{
+  --primary:#f0f0f5;
+  --surface:#ffffff;
+  --surface2:#f0f0f6;
+  --surface3:#e4e4ef;
+  --white:#111122;
+  --gray:#55556e;
+  --border:rgba(0,0,0,0.09);
+  --glow:0 0 40px rgba(255,59,92,0.08);
+  background:#f0f0f5;
+  color:#111122;
+}
+/* Navbar */
+html.light-theme .navbar{background:rgba(248,248,252,0.97)!important;border-bottom-color:rgba(0,0,0,0.08);}
+/* Announcement bar keeps its gradient – no change needed */
+/* Search & category buttons */
+html.light-theme .search-wrap input{background:#fff;color:#111122;border-color:rgba(0,0,0,0.12);}
+html.light-theme .search-wrap input::placeholder{color:#8888a0;}
+html.light-theme .cat-dropdown-btn{background:#fff;color:#111122;border-color:rgba(0,0,0,0.12);}
+/* Cart drawer – was hardcoded #111118 */
+html.light-theme #cartDrawer{background:#fff!important;border-left-color:rgba(0,0,0,0.09)!important;}
+html.light-theme #cartDrawer [style*="background:#18181f"],
+html.light-theme #cartDrawer [style*="background:#1e1e28"]{background:#f4f4f8!important;}
+html.light-theme #cartDrawer [style*="border-top:1px solid rgba(255,255,255"]{border-color:rgba(0,0,0,0.08)!important;}
+html.light-theme #cartDrawer [style*="border-bottom:1px solid rgba(255,255,255"]{border-color:rgba(0,0,0,0.08)!important;}
+html.light-theme #cartDrawer button[style*="background:#1e1e28"]{background:#e8e8f0!important;color:#111122!important;}
+html.light-theme #cartDrawer [style*="color:#f0f0f8"]{color:#111122!important;}
+/* Product cards */
+html.light-theme .pcard{background:#fff;border-color:rgba(0,0,0,0.07);}
+html.light-theme .pcard:hover{box-shadow:0 16px 40px rgba(0,0,0,0.12);}
+html.light-theme .pcard-img{background:#f5f5fa;}
+html.light-theme .wishlist-btn{background:rgba(0,0,0,0.06)!important;color:#55556e;}
+/* Hero section – override hardcoded dark gradients */
+html.light-theme .hero-main{background:linear-gradient(135deg,#e8e8f8 0%,#f0e8f8 40%,#e8f0f8 100%)!important;}
+html.light-theme .hero-main h1{color:#111122!important;}
+/* Flash-sale see-all card */
+html.light-theme .flash-see-all-card{background:linear-gradient(135deg,#fff0f4,#fff5f0)!important;border-color:rgba(255,59,92,0.3)!important;}
+html.light-theme .flash-see-all-card:hover{background:linear-gradient(135deg,#ffe0e8,#ffe8e0)!important;}
+/* Category mega dropdown */
+html.light-theme .cat-mega{background:#fff;box-shadow:0 24px 60px rgba(0,0,0,0.12);}
+html.light-theme .cat-item:hover{background:rgba(255,59,92,0.06);color:#111122;}
+/* Section / filter tabs */
+html.light-theme .tab{border-color:rgba(0,0,0,0.12);color:#55556e;background:#fff;}
+html.light-theme .tab.active{background:#111122;color:#fff;border-color:#111122;}
+/* Countdown timer box */
+html.light-theme .cdu{background:#fff;color:#111122;border:1px solid rgba(0,0,0,0.1);}
+/* Feature banner – override hardcoded dark gradient */
+html.light-theme .fbanner{background:linear-gradient(135deg,#f8f0ff 0%,#fff0f4 50%,#f0f8ff 100%)!important;}
+html.light-theme .fbanner h2{color:#111122!important;}
+html.light-theme .fbanner-cta.outline{border-color:rgba(0,0,0,0.2);color:#111122;}
+/* Newsletter – override hardcoded dark gradient */
+html.light-theme .newsletter{background:linear-gradient(135deg,#e8f8f0,#f0f0ff,#fff0f4)!important;}
+html.light-theme .newsletter h2,.newsletter p{color:#111122;}
+/* Footer */
+html.light-theme footer,.light-theme .footer{background:#e4e4ef!important;}
+html.light-theme .footer-bottom{border-top-color:rgba(0,0,0,0.08);}
+/* Account dropdown menu (already white, stays white in both modes) */
+html.light-theme .acct-menu{background:#fff;box-shadow:0 6px 28px rgba(0,0,0,0.15);}
+/* Modals */
+html.light-theme .modal-overlay{background:rgba(0,0,0,0.45);}
+html.light-theme .mbox{background:#fff;}
+html.light-theme .mhd{background:#f4f4f8;border-bottom-color:rgba(0,0,0,0.08);}
+html.light-theme .minp{background:#f8f8fc;border-color:rgba(0,0,0,0.1);color:#111122;}
+html.light-theme .minp::placeholder{color:#8888a0;}
+/* FAQ widget */
+html.light-theme .faq-window{background:#fff;box-shadow:0 16px 56px rgba(0,0,0,0.15);}
+html.light-theme .faq-header-info h4{color:#111122!important;}
+html.light-theme .faq-close{background:rgba(0,0,0,0.06)!important;color:#111122!important;}
+html.light-theme .msg-bubble{background:#f0f0f6!important;color:#111122!important;}
+html.light-theme .msg-bubble strong{color:#111122!important;}
+/* Cart badge border against light bg */
+html.light-theme .cbadge{border-color:var(--surface2);}
+/* Scrollbar */
+html.light-theme ::-webkit-scrollbar-track{background:#e8e8f0;}
+html.light-theme ::-webkit-scrollbar-thumb{background:var(--accent);}
+/* Overlay backdrops */
+html.light-theme .cart-overlay{background:rgba(0,0,0,0.35)!important;}
+/* Price text */
+html.light-theme .price-current,.light-theme .price-main{color:#111122;}
+
+/* ── THEME TOGGLE BUTTON ─────────────────────────────────── */
+.theme-toggle-btn{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface2);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.25s;flex-shrink:0;}
+.theme-toggle-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface3);transform:scale(1.08);}
+/* prevent transition flash on initial load */
+html.light-theme *{transition-duration:0s!important;}
+html.light-theme.theme-ready *{transition-duration:unset!important;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background:var(--primary);color:var(--white);overflow-x:hidden;}
@@ -1229,6 +1329,14 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
 .mdivider{display:flex;align-items:center;gap:14px;margin:14px 0;}
 .mdivider::before,.mdivider::after{content:'';flex:1;height:1px;background:var(--border);}
 .mdivider span{font-size:12px;color:var(--gray);}
+/* ── SOCIAL LOGIN BUTTONS ── */
+.social-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;transition:all 0.2s;margin-bottom:10px;border:1.5px solid var(--border);}
+.google-btn{background:var(--surface2);color:var(--white);}
+.google-btn:hover{background:var(--surface3);border-color:#4285F4;box-shadow:0 4px 14px rgba(66,133,244,0.18);transform:translateY(-1px);}
+/* ── OR DIVIDER ── */
+.or-divider{display:flex;align-items:center;gap:12px;margin:6px 0 16px;}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.or-divider span{font-size:12px;color:var(--gray);white-space:nowrap;}
 
 /* TOAST */
 .toast-stack{position:fixed;bottom:28px;right:28px;display:flex;flex-direction:column;gap:10px;z-index:9999;}
@@ -1333,11 +1441,175 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
 .pw-strength{height:4px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--surface3);}
 .pw-strength-label{font-size:11px;color:var(--gray);margin-top:4px;}
 
+/* ── HAMBURGER MENU (hidden on desktop) ─────────────────── */
+.ham-btn{display:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--white);width:40px;height:40px;border-radius:10px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.ham-btn:hover{border-color:var(--accent);color:var(--accent);}
+.mob-menu{display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);}
+.mob-menu.open{display:block;}
+.mob-menu-panel{position:absolute;left:0;top:0;bottom:0;width:280px;background:var(--surface);border-right:1px solid var(--border);padding:0;overflow-y:auto;transform:translateX(-100%);transition:transform .3s;}
+.mob-menu.open .mob-menu-panel{transform:translateX(0);}
+.mob-menu-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 16px;border-bottom:1px solid var(--border);}
+.mob-menu-hd .brand{font-size:20px;}
+.mob-close{background:none;border:none;color:var(--gray);font-size:22px;cursor:pointer;padding:4px;}
+.mob-menu-links{padding:8px 0;}
+.mob-menu-links a,.mob-menu-links button{display:flex;align-items:center;gap:12px;padding:14px 20px;font-size:14px;font-weight:600;color:var(--white);text-decoration:none;background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s;}
+.mob-menu-links a:hover,.mob-menu-links button:hover{background:var(--surface2);color:var(--accent);}
+.mob-menu-divider{height:1px;background:var(--border);margin:8px 0;}
+.mob-menu-section{padding:10px 20px 4px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gray);}
+.mob-auth-btns{display:flex;gap:8px;padding:12px 16px;}
+.mob-auth-btns .nbtn{flex:1;text-align:center;padding:11px 10px;}
+
+/* ── 1024px ─────────────────────────────────────────────── */
 @media(max-width:1024px){
+  .navbar{padding:14px 24px;gap:14px;}
+  .sec,.two-col,.features-bar,.fbanner,.newsletter{margin-left:24px;margin-right:24px;}
+  .hero{margin-left:24px;margin-right:24px;}
+  footer{padding:40px 24px;}
   .caticons{grid-template-columns:repeat(5,1fr);}
   .features-bar{grid-template-columns:repeat(2,1fr);}
-  .newsletter{grid-template-columns:1fr;}
+  .newsletter{grid-template-columns:1fr;padding:40px 32px;}
   .fg{grid-template-columns:repeat(2,1fr);}
+  .two-col{grid-template-columns:1fr;}
+  .hero{grid-template-columns:1fr;}
+  .hero-side{display:none;}
+  .cat-mega{width:580px;}
+  .cat-mega-body{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ── 768px ──────────────────────────────────────────────── */
+@media(max-width:768px){
+  /* Navbar — show hamburger, collapse middle items */
+  .navbar{padding:12px 16px;gap:10px;}
+  .cat-dropdown-wrap{display:none;}
+  .search-wrap{flex:1;max-width:none;}
+  .nbtn.ol{display:none;}
+  .nbtn.fi{display:none;}
+  .acct-label,.acct-caret{display:none;}
+  .ham-btn{display:flex;}
+
+  /* Category nav */
+  .catnav{padding:0 8px;}
+  .catnav a{padding:13px 14px;font-size:12px;}
+
+  /* Sections */
+  .sec,.two-col,.features-bar,.fbanner,.newsletter{margin-left:16px;margin-right:16px;}
+  .hero{margin:16px 16px 24px;grid-template-columns:1fr;}
+  .hero-side{display:none;}
+  footer{padding:32px 16px;}
+
+  /* Product grid */
+  .pgrid{grid-template-columns:repeat(2,1fr);gap:14px;}
+  .pcard{flex:0 0 200px;}
+
+  /* Category icons */
+  .caticons{grid-template-columns:repeat(4,1fr);gap:10px;}
+  .ci{padding:14px 6px;}
+  .ci-circle{width:50px;height:50px;font-size:22px;}
+
+  /* Section header */
+  .sec-hd{flex-direction:column;align-items:flex-start;gap:10px;}
+  .sec-title h2{font-size:22px;}
+
+  /* Features */
+  .features-bar{grid-template-columns:repeat(2,1fr);gap:12px;}
+  .feat-card{padding:20px 14px;}
+
+  /* Hero */
+  .hero-main{padding:36px 24px;}
+  .hero-main h1{font-size:34px;}
+  .hero-main p{font-size:14px;}
+
+  /* Banner */
+  .fbanner{padding:36px 24px;}
+  .fbanner h2{font-size:26px;}
+  .fbanner-actions{flex-direction:column;gap:10px;}
+  .fbanner-cta{width:100%;text-align:center;}
+
+  /* Newsletter */
+  .newsletter{padding:32px 24px;}
+  .nl-left h2{font-size:24px;}
+  .nl-form{flex-direction:column;}
+  .nl-btn{border-radius:12px;}
+
+  /* Footer */
+  .fg{grid-template-columns:1fr 1fr;gap:24px;}
+  .footer-bottom{flex-direction:column;gap:10px;text-align:center;}
+
+  /* Cart drawer full width */
+  #cartDrawer{width:100vw!important;}
+
+  /* Modals */
+  .mbox{width:calc(100vw - 24px);}
+  .contact-grid{grid-template-columns:1fr;}
+  .pm-tab{font-size:11px;padding:9px 6px;}
+}
+
+/* ── 480px ──────────────────────────────────────────────── */
+@media(max-width:480px){
+  /* Navbar */
+  .navbar{padding:10px 12px;gap:8px;}
+  .brand{font-size:20px;}
+  .theme-toggle-btn{width:34px;height:34px;}
+  .cart-btn{width:38px;height:38px;font-size:16px;}
+
+  /* Announcement */
+  .ann-bar{font-size:11px;padding:8px 10px;}
+
+  /* Margins */
+  .sec,.two-col,.features-bar,.fbanner,.newsletter{margin-left:12px;margin-right:12px;}
+  .hero{margin:12px 12px 20px;}
+  footer{padding:24px 12px;}
+
+  /* Hero */
+  .hero-main{padding:28px 18px;}
+  .hero-main h1{font-size:26px;}
+  .hero-main p{font-size:13px;margin-bottom:20px;}
+  .hero-main::after{font-size:80px;right:18px;}
+
+  /* Product cards */
+  .pgrid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .pcard{flex:0 0 155px;}
+  .pcard-img{height:150px;}
+  .pcard-emoji{font-size:60px;}
+  .pcard-body{padding:10px;}
+  .pcard-name{font-size:12px;}
+  .price-current{font-size:15px;}
+  .add-cart-btn{font-size:12px;padding:9px;gap:5px;}
+
+  /* Category icons */
+  .caticons{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .ci{padding:12px 4px;}
+  .ci-circle{width:44px;height:44px;font-size:20px;}
+  .ci-label{font-size:10px;}
+
+  /* Section title */
+  .sec-title h2{font-size:19px;}
+
+  /* Features */
+  .features-bar{grid-template-columns:1fr;}
+  .feat-card{padding:16px;}
+
+  /* Banner */
+  .fbanner{padding:28px 16px;}
+  .fbanner h2{font-size:22px;}
+
+  /* Newsletter */
+  .newsletter{padding:24px 16px;}
+  .nl-left h2{font-size:21px;}
+
+  /* Footer single col */
+  .fg{grid-template-columns:1fr;}
+
+  /* Tabs */
+  .tabs{gap:6px;}
+  .tab{padding:7px 12px;font-size:11px;}
+
+  /* Countdown */
+  .cdu{padding:4px 7px;font-size:12px;min-width:28px;}
+
+  /* Modals */
+  .mbox{width:calc(100vw - 16px);padding:20px 14px;}
+  .mhd{padding:14px 16px;}
 }
 </style>
 </head>
@@ -1408,7 +1680,15 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </button>
   </div>
+  <!-- MOBILE HAMBURGER -->
+  <button class="ham-btn" onclick="openMobMenu()" aria-label="Open menu">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
   <div class="nav-actions">
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme">
+      <svg id="theme-icon-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg id="theme-icon-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
     {% if current_user.is_authenticated %}
       <div class="acct-wrap" id="acctWrap">
         <button class="acct-trigger" onclick="toggleAcct(event)">
@@ -1460,6 +1740,41 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
     </button>
   </div>
 </nav>
+
+<!-- MOBILE MENU -->
+<div class="mob-menu" id="mobMenu" onclick="closeMobMenu(event)">
+  <div class="mob-menu-panel">
+    <div class="mob-menu-hd">
+      <span class="brand"><span class="brand-my">My</span><span class="brand-store">Store</span></span>
+      <button class="mob-close" onclick="closeMobMenuDirect()">✕</button>
+    </div>
+    <div class="mob-menu-links">
+      <div class="mob-menu-section">Browse</div>
+      <a href="/">🏠 All Products</a>
+      <a href="/?category=Electronics">⚡ Electronics</a>
+      <a href="/?category=Fashion">👗 Fashion</a>
+      <a href="/?category=Accessories">💼 Accessories</a>
+      <a href="/?flash=1">🔥 Flash Sale</a>
+      <div class="mob-menu-divider"></div>
+      <div class="mob-menu-section">Categories</div>
+      <a href="/?sub=Smartphones">📱 Smartphones</a>
+      <a href="/?sub=Laptops">💻 Laptops</a>
+      <a href="/?sub=Audio">🎧 Audio</a>
+      <a href="/?sub=T-Shirt">👕 T-Shirts</a>
+      <a href="/?sub=Shoes">👟 Shoes</a>
+      <a href="/?sub=Watches">⌚ Watches</a>
+      <div class="mob-menu-divider"></div>
+      <div class="mob-menu-section">Account</div>
+      <a href="/orders">📦 My Orders</a>
+      <a href="/track-order">🚚 Track Order</a>
+      <a href="/faq">❓ Help & FAQ</a>
+    </div>
+    <div class="mob-auth-btns">
+      <button class="nbtn ol" onclick="openModal('registerModal');closeMobMenuDirect()">Sign Up</button>
+      <button class="nbtn fi" onclick="openModal('loginModal');closeMobMenuDirect()">Login</button>
+    </div>
+  </div>
+</div>
 
 <!-- CART DRAWER -->
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
@@ -1619,6 +1934,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
       <button class="mclose" onclick="closeModal('loginModal')">✕</button>
     </div>
     <div class="mbody">
+      <!-- ── SOCIAL LOGIN ── -->
+      <a href="/auth/google" class="social-btn google-btn">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.11 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </a>
+      <!-- ── DIVIDER ── -->
+      <div class="or-divider"><span>or sign in with email</span></div>
       <form method="post" action="/login">
         <input class="minput" name="username" placeholder="Username or Email" required autocomplete="username">
         <!-- PASSWORD with eye toggle -->
@@ -1659,6 +1981,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
       <button class="mclose" onclick="closeModal('registerModal')">✕</button>
     </div>
     <div class="mbody">
+      <!-- ── SOCIAL SIGN-UP ── -->
+      <a href="/auth/google" class="social-btn google-btn">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.11 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Sign up with Google
+      </a>
+      <!-- ── DIVIDER ── -->
+      <div class="or-divider"><span>or create account with email</span></div>
       <form method="post" action="/register" id="regForm" onsubmit="return validateReg()">
         <input class="minput" name="username" id="reg_username" placeholder="Choose a username" required autocomplete="username">
         <input class="minput" name="email" id="reg_email" type="email" placeholder="Your email address" required autocomplete="email">
@@ -1812,6 +2141,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:48px
 </div>
 
 <script>
+// ===== MOBILE MENU =====
+function openMobMenu(){document.getElementById('mobMenu').classList.add('open');document.body.style.overflow='hidden';}
+function closeMobMenuDirect(){document.getElementById('mobMenu').classList.remove('open');document.body.style.overflow='';}
+function closeMobMenu(e){if(e.target===document.getElementById('mobMenu'))closeMobMenuDirect();}
+
 // ===== SEARCH =====
 function doSearch(){
   var q = document.getElementById('searchInput').value.trim();
@@ -2098,6 +2432,13 @@ function addMsgAnimated(text, type){
 document.addEventListener('DOMContentLoaded',function(){showToast('Item added to cart! 🛒','success');});
 {% endif %}
 
+{% if oauth_error %}
+document.addEventListener('DOMContentLoaded',function(){
+  showToast('Google sign-in failed: {{ oauth_error }}','error');
+  openModal('loginModal');
+});
+{% endif %}
+
 
 // ===== FOOTER INFO MODAL =====
 function openInfoModal(key) {
@@ -2141,6 +2482,32 @@ document.addEventListener('click',function(e){
   var w=document.getElementById('acctWrap');
   if(w&&!w.contains(e.target)) w.classList.remove('open');
 });
+
+// ── THEME TOGGLE ─────────────────────────────────────────────
+// On DOMContentLoaded: enable smooth transitions now that initial paint is done
+document.addEventListener('DOMContentLoaded', function(){
+  document.documentElement.classList.add('theme-ready');
+  syncThemeIcon();
+});
+function syncThemeIcon(){
+  var isLight=document.documentElement.classList.contains('light-theme');
+  var iconDark=document.getElementById('theme-icon-dark');
+  var iconLight=document.getElementById('theme-icon-light');
+  if(iconDark) iconDark.style.display=isLight?'block':'none';
+  if(iconLight) iconLight.style.display=isLight?'none':'block';
+}
+function toggleTheme(){
+  var html=document.documentElement;
+  var isLight=html.classList.contains('light-theme');
+  if(isLight){
+    html.classList.remove('light-theme');
+    localStorage.setItem('mystore_theme','dark');
+  }else{
+    html.classList.add('light-theme');
+    localStorage.setItem('mystore_theme','light');
+  }
+  syncThemeIcon();
+}
 
 // ── PROFILE MODAL ─────────────────────────────────────────────
 function openProfileModal(tab){
@@ -4495,6 +4862,7 @@ def home():
     na = request.args.get('new_arrivals', '')
     added = request.args.get('added', '')
     nl = request.args.get('need_login', '')
+    oauth_error = request.args.get('oauth_error', '')
 
     cc = 0
     cart_total = 0
@@ -4536,7 +4904,7 @@ def home():
 
     return render_template_string(PAGE, pc=pc, ac=ac, sv=sv, fo=fo,
         added=added, need_login=nl, cc=cc, ch=ch, cart_total=cart_total,
-        current_user=current_user)
+        oauth_error=oauth_error, current_user=current_user)
 
 
 @app.route('/register', methods=['POST'])
@@ -4566,6 +4934,104 @@ def logout():
     logout_user()
     return redirect('/')
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  GOOGLE  OAUTH  2.0
+# ══════════════════════════════════════════════════════════════════════════════
+@app.route('/auth/google')
+def auth_google():
+    """Redirect the browser to Google's consent screen."""
+    import urllib.parse
+    if not GOOGLE_CLIENT_ID:
+        return redirect('/?oauth_error=Google+OAuth+is+not+configured')
+    params = {
+        'client_id':     GOOGLE_CLIENT_ID,
+        'redirect_uri':  url_for('auth_google_callback', _external=True),
+        'response_type': 'code',
+        'scope':         'openid email profile',
+        'access_type':   'online',
+        'prompt':        'select_account',
+    }
+    auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode(params)
+    return redirect(auth_url)
+
+
+@app.route('/auth/google/callback')
+def auth_google_callback():
+    """Exchange code for token, fetch profile, log in or register the user."""
+    import urllib.parse
+    code = request.args.get('code')
+    error = request.args.get('error')
+    if error or not code:
+        return redirect('/?oauth_error=' + urllib.parse.quote(error or 'Google+login+cancelled'))
+
+    # ── 1. Exchange code for access token ───────────────────────────────────
+    token_resp = requests.post('https://oauth2.googleapis.com/token', data={
+        'code':          code,
+        'client_id':     GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'redirect_uri':  url_for('auth_google_callback', _external=True),
+        'grant_type':    'authorization_code',
+    })
+    if not token_resp.ok:
+        print(f"[Google OAuth] Token exchange failed: {token_resp.status_code} {token_resp.text}")
+        return redirect('/?oauth_error=Google+token+exchange+failed')
+    access_token = token_resp.json().get('access_token')
+
+    # ── 2. Fetch the user's Google profile ──────────────────────────────────
+    profile_resp = requests.get(
+        'https://www.googleapis.com/oauth2/v2/userinfo',
+        headers={'Authorization': f'Bearer {access_token}'}
+    )
+    if not profile_resp.ok:
+        print(f"[Google OAuth] Profile fetch failed: {profile_resp.status_code} {profile_resp.text}")
+        return redirect('/?oauth_error=Could+not+fetch+Google+profile')
+    profile = profile_resp.json()
+
+    google_id  = str(profile.get('id', ''))
+    email      = profile.get('email', '')
+    name       = profile.get('name', '') or profile.get('given_name', '') or email.split('@')[0]
+    avatar_url = profile.get('picture', '')
+
+    # ── 3. Find or create the user ──────────────────────────────────────────
+    user = User.query.filter_by(oauth_provider='google', oauth_id=google_id).first()
+
+    if not user and email:
+        # Maybe they already registered with the same email → link accounts
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.oauth_provider = 'google'
+            user.oauth_id = google_id
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            db.session.commit()
+
+    if not user:
+        # Brand new user — auto-create account
+        base_username = name.replace(' ', '').lower()[:30] or 'user'
+        username = base_username
+        suffix = 1
+        while User.query.filter_by(username=username).first():
+            username = f'{base_username}{suffix}'
+            suffix += 1
+
+        user = User(
+            username=username,
+            email=email or None,
+            oauth_provider='google',
+            oauth_id=google_id,
+            avatar_url=avatar_url or None,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+    return redirect('/')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  FACEBOOK  OAUTH  2.0
+# ══════════════════════════════════════════════════════════════════════════════
 
 @app.route('/add-ajax/<int:id>', methods=['POST'])
 def add_ajax(id):
@@ -6598,6 +7064,18 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="form-group">
       <label>Product Image URL</label>
       <input id="p-image-url" placeholder="https://images.unsplash.com/..." oninput="previewProductImage(this.value)">
+      <div style="margin-top:10px;">
+        <label style="font-size:12px;color:var(--gray);font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Or upload from your device
+        </label>
+        <label id="p-upload-label" style="display:flex;align-items:center;gap:8px;padding:9px 16px;border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;background:var(--surface3);font-size:13px;color:var(--gray);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--gray)';">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span id="p-upload-filename">Choose image file (JPG, PNG, WEBP, GIF · max 5 MB)</span>
+          <input type="file" id="p-image-file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" onchange="handleLocalImageUpload(this)">
+        </label>
+        <div id="p-upload-progress" style="display:none;margin-top:6px;font-size:12px;color:var(--accent3);">⏳ Uploading…</div>
+      </div>
       <div id="p-image-preview" style="margin-top:8px;display:none;">
         <img id="p-img-tag" src="" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
       </div>
@@ -6682,13 +7160,22 @@ function filterUsers(){
 function previewProductImage(url){
   var wrap=document.getElementById('p-image-preview');
   var img=document.getElementById('p-img-tag');
-  if(url&&url.startsWith('http')){
+  if(url&&(url.startsWith('http')||url.startsWith('data:'))){
     img.src=url;
     wrap.style.display='block';
     img.onerror=function(){wrap.style.display='none';};
   }else{
     wrap.style.display='none';
   }
+}
+
+function resetUploadField(){
+  var fi=document.getElementById('p-image-file');
+  if(fi) fi.value='';
+  var fn=document.getElementById('p-upload-filename');
+  if(fn) fn.textContent='Choose image file (JPG, PNG, WEBP, GIF \u00b7 max 5 MB)';
+  var prog=document.getElementById('p-upload-progress');
+  if(prog) prog.style.display='none';
 }
 
 function openProductModal(){
@@ -6699,6 +7186,7 @@ function openProductModal(){
   });
   document.getElementById('p-flash').value='false';
   document.getElementById('p-image-preview').style.display='none';
+  resetUploadField();
   document.getElementById('product-modal').classList.add('show');
 }
 
@@ -6716,11 +7204,44 @@ function openEditProduct(id,name,emoji,cat,subcat,price,orig,desc,rating,flash,i
   document.getElementById('p-flash').value=flash?'true':'false';
   document.getElementById('p-image-url').value=imageUrl||'';
   previewProductImage(imageUrl||'');
+  resetUploadField();
   document.getElementById('product-modal').classList.add('show');
 }
 
 function closeProductModal(){
   document.getElementById('product-modal').classList.remove('show');
+  resetUploadField();
+}
+
+function handleLocalImageUpload(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  var fn=document.getElementById('p-upload-filename');
+  var prog=document.getElementById('p-upload-progress');
+  fn.textContent=file.name;
+  prog.style.display='block';
+  var formData=new FormData();
+  formData.append('image',file);
+  fetch('/admin/product/upload-image',{method:'POST',body:formData})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    prog.style.display='none';
+    if(d.ok){
+      document.getElementById('p-image-url').value=d.url;
+      previewProductImage(d.url);
+      fn.textContent='\u2713 '+file.name+' (ready)';
+    }else{
+      alert('Upload failed: '+(d.error||'Unknown error'));
+      fn.textContent='Choose image file (JPG, PNG, WEBP, GIF \u00b7 max 5 MB)';
+      input.value='';
+    }
+  })
+  .catch(function(){
+    prog.style.display='none';
+    alert('Upload failed. Please try again.');
+    fn.textContent='Choose image file (JPG, PNG, WEBP, GIF \u00b7 max 5 MB)';
+    input.value='';
+  });
 }
 
 function saveProduct(){
@@ -6874,6 +7395,24 @@ def admin_update_order_status(order_id):
     return jsonify({'ok': True})
 
 
+@app.route('/admin/product/upload-image', methods=['POST'])
+@admin_required
+def admin_upload_product_image():
+    import base64, uuid, re
+    f = request.files.get('image')
+    if not f:
+        return jsonify({'ok': False, 'error': 'No file provided'})
+    allowed = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+    if f.mimetype not in allowed:
+        return jsonify({'ok': False, 'error': 'Only JPG, PNG, GIF, WEBP allowed'})
+    data = f.read()
+    if len(data) > 5 * 1024 * 1024:
+        return jsonify({'ok': False, 'error': 'Image must be under 5 MB'})
+    b64 = base64.b64encode(data).decode('utf-8')
+    data_url = f'data:{f.mimetype};base64,{b64}'
+    return jsonify({'ok': True, 'url': data_url})
+
+
 @app.route('/admin/product/add', methods=['POST'])
 @admin_required
 def admin_add_product():
@@ -6995,6 +7534,18 @@ def admin_export_subscribers():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # ── OAuth columns (safe no-ops if already present) ──────────────────
+        for col_sql in [
+            "ALTER TABLE user ADD COLUMN oauth_provider VARCHAR(50)",
+            "ALTER TABLE user ADD COLUMN oauth_id VARCHAR(200)",
+            "ALTER TABLE user ADD COLUMN avatar_url VARCHAR(500)",
+        ]:
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+            except Exception:
+                pass
         # Add subcategory column to existing DBs that don't have it yet
         try:
             with db.engine.connect() as conn:
