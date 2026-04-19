@@ -853,6 +853,7 @@ def make_card(p, show_progress=True):
 PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="google-site-verification" content="9hy9pAkyHnLJu19sQueGGS7u0Ip-z4DSPQEKX_-Iy_8" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MyStore – Shop Beyond Boundaries</title>
