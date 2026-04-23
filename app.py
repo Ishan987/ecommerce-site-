@@ -1408,7 +1408,7 @@ a{text-decoration:none;color:inherit;}
 
 /* NEWSLETTER */
 .newsletter{margin:0 48px 40px;background:linear-gradient(135deg,#001a10,#0a0a1a,#1a0008);border-radius:24px;padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;border:1px solid var(--border);}
-.nl-left h2{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;margin-bottom:10px;}
+.nl-left h2{font-family:'DM Sans',sans-serif;font-size:30px;font-weight:800;margin-bottom:10px;}
 .nl-left h2 em{color:var(--accent3);font-style:normal;}
 .nl-left p{color:var(--gray);font-size:14px;}
 .nl-form{display:flex;gap:10px;}
