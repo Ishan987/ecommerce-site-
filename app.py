@@ -136,6 +136,98 @@ class Advertisement(db.Model):
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+
+# ================= DB INIT (runs under gunicorn AND direct) =================
+def init_db():
+    with app.app_context():
+        db.create_all()
+        # ── OAuth columns (safe no-ops if already present) ──────────────────
+        for col_sql in [
+            "ALTER TABLE user ADD COLUMN oauth_provider VARCHAR(50)",
+            "ALTER TABLE user ADD COLUMN oauth_id VARCHAR(200)",
+            "ALTER TABLE user ADD COLUMN avatar_url VARCHAR(500)",
+        ]:
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+            except Exception:
+                pass
+        for col_sql, label in [
+            ("ALTER TABLE product ADD COLUMN subcategory VARCHAR(100) DEFAULT ''", "subcategory"),
+            ("ALTER TABLE product ADD COLUMN image_url VARCHAR(500) DEFAULT ''", "image_url"),
+            ("ALTER TABLE cart ADD COLUMN quantity INTEGER DEFAULT 1", "quantity"),
+        ]:
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+                print(f"Added {label} column.")
+            except Exception:
+                pass
+        # Seed default advertisements if none exist
+        try:
+            if Advertisement.query.count() == 0:
+                for ad in [
+                    Advertisement(slot=1, tag='⚡ Electronics Sale', title='Latest Gadgets & Tech',
+                        subtitle="Smartphones, Laptops, Audio & more — deals you can't miss",
+                        cta_text='Shop Electronics →', cta_link='/?category=Electronics',
+                        discount='UP TO 40% OFF', emoji='📱', theme='electronics', is_active=True),
+                    Advertisement(slot=2, tag='🔥 Fashion Fiesta', title='Trendy Styles Await',
+                        subtitle='T-Shirts, Jackets, Jeans & more — dress to impress',
+                        cta_text='Explore Fashion →', cta_link='/?category=Fashion',
+                        discount='FLAT 50% OFF', emoji='👗', theme='fashion', is_active=True),
+                    Advertisement(slot=3, tag='✨ Accessories Deal', title='Complete Your Look',
+                        subtitle='Watches, Bags, Jewellery & more — style in every detail',
+                        cta_text='Shop Accessories →', cta_link='/?category=Accessories',
+                        discount='UP TO 35% OFF', emoji='💎', theme='accessories', is_active=True),
+                ]:
+                    db.session.add(ad)
+                db.session.commit()
+                print("Seeded 3 default advertisements.")
+        except Exception as e:
+            print(f"Advertisement seed error: {e}")
+            db.session.rollback()
+        # Seed products
+        try:
+            if Product.query.count() == 0:
+                for p in PRODUCTS:
+                    db.session.add(Product(
+                        name=p['name'], price=p['price'], orig_price=p['orig_price'],
+                        category=p['category'], subcategory=p.get('subcategory', ''),
+                        emoji=p['emoji'], description=p['description'],
+                        rating=p['rating'], sold=p['sold'], is_flash=p['is_flash'],
+                        image_url=p.get('image_url', '')
+                    ))
+                db.session.commit()
+                print(f"Seeded {len(PRODUCTS)} products.")
+            else:
+                stale = Product.query.filter_by(category='Electronics', subcategory='Electronics').first()
+                needs_reseed = (stale is not None
+                    or Product.query.filter(Product.subcategory == '').first() is not None
+                    or Product.query.count() < 1000
+                    or Product.query.filter(Product.image_url == '').first() is not None)
+                if needs_reseed:
+                    print("Re-seeding products…")
+                    Product.query.delete()
+                    for p in PRODUCTS:
+                        db.session.add(Product(
+                            name=p['name'], price=p['price'], orig_price=p['orig_price'],
+                            category=p['category'], subcategory=p.get('subcategory', ''),
+                            emoji=p['emoji'], description=p['description'],
+                            rating=p['rating'], sold=p['sold'], is_flash=p['is_flash'],
+                            image_url=p.get('image_url', '')
+                        ))
+                    db.session.commit()
+                    print(f"Re-seeded {len(PRODUCTS)} products.")
+                else:
+                    print("Products OK — skipping seed.")
+        except Exception as e:
+            print(f"Product seed error: {e}")
+            db.session.rollback()
+
+init_db()  # Always runs — works with gunicorn, waitress, and direct python
+
 # ================= SEED DATA =================
 PRODUCTS = [
     # ── Electronics ──────────────────────────────────────────────────────────
@@ -7911,116 +8003,4 @@ def admin_delete_advertisement(slot):
 
 # ================= RUN =================
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # ── OAuth columns (safe no-ops if already present) ──────────────────
-        for col_sql in [
-            "ALTER TABLE user ADD COLUMN oauth_provider VARCHAR(50)",
-            "ALTER TABLE user ADD COLUMN oauth_id VARCHAR(200)",
-            "ALTER TABLE user ADD COLUMN avatar_url VARCHAR(500)",
-        ]:
-            try:
-                with db.engine.connect() as conn:
-                    conn.execute(db.text(col_sql))
-                    conn.commit()
-            except Exception:
-                pass
-        # Add subcategory column to existing DBs that don't have it yet
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("ALTER TABLE product ADD COLUMN subcategory VARCHAR(100) DEFAULT ''"))
-                conn.commit()
-            print("Added subcategory column.")
-        except Exception:
-            pass  # Column already exists — that's fine
-        # Add image_url column if not present
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("ALTER TABLE product ADD COLUMN image_url VARCHAR(500) DEFAULT ''"))
-                conn.commit()
-            print("Added image_url column.")
-        except Exception:
-            pass  # Column already exists — that's fine
-        # Add quantity column to cart if not present
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("ALTER TABLE cart ADD COLUMN quantity INTEGER DEFAULT 1"))
-                conn.commit()
-            print("Added quantity column to cart.")
-        except Exception:
-            pass  # Column already exists — that's fine
-        # Ensure saved_address table exists
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("SELECT 1 FROM saved_address LIMIT 1"))
-            print("saved_address table ready.")
-        except Exception:
-            db.create_all()
-            print("Created saved_address table.")
-        # Ensure subscriber table exists (safe no-op if already present)
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("SELECT 1 FROM subscriber LIMIT 1"))
-            print("Subscriber table ready.")
-        except Exception:
-            db.create_all()
-            print("Created subscriber table.")
-        # Ensure advertisement table exists
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("SELECT 1 FROM advertisement LIMIT 1"))
-            print("Advertisement table ready.")
-        except Exception:
-            db.create_all()
-            print("Created advertisement table.")
-        # Seed default advertisements if none exist
-        if Advertisement.query.count() == 0:
-            default_ads = [
-                Advertisement(slot=1, tag='⚡ Electronics Sale', title='Latest Gadgets & Tech',
-                    subtitle="Smartphones, Laptops, Audio & more — deals you can't miss",
-                    cta_text='Shop Electronics →', cta_link='/?category=Electronics',
-                    discount='UP TO 40% OFF', emoji='📱', theme='electronics', is_active=True),
-                Advertisement(slot=2, tag='🔥 Fashion Fiesta', title='Trendy Styles Await',
-                    subtitle='T-Shirts, Jackets, Jeans & more — dress to impress',
-                    cta_text='Explore Fashion →', cta_link='/?category=Fashion',
-                    discount='FLAT 50% OFF', emoji='👗', theme='fashion', is_active=True),
-                Advertisement(slot=3, tag='✨ Accessories Deal', title='Complete Your Look',
-                    subtitle='Watches, Bags, Jewellery & more — style in every detail',
-                    cta_text='Shop Accessories →', cta_link='/?category=Accessories',
-                    discount='UP TO 35% OFF', emoji='💎', theme='accessories', is_active=True),
-            ]
-            for ad in default_ads:
-                db.session.add(ad)
-            db.session.commit()
-            print("Seeded 3 default advertisements.")
-        if Product.query.count() == 0:
-            for p in PRODUCTS:
-                db.session.add(Product(
-                    name=p['name'], price=p['price'], orig_price=p['orig_price'],
-                    category=p['category'], subcategory=p.get('subcategory', ''),
-                    emoji=p['emoji'], description=p['description'],
-                    rating=p['rating'], sold=p['sold'], is_flash=p['is_flash'],
-                    image_url=p.get('image_url', '')
-                ))
-            db.session.commit()
-            print(f"Seeded {len(PRODUCTS)} products.")
-        else:
-            # Re-seed if subcategories are still old generic 'Electronics' value
-            stale = Product.query.filter_by(category='Electronics', subcategory='Electronics').first()
-            needs_reseed = stale is not None or Product.query.filter(Product.subcategory == '').first() is not None or Product.query.count() < 1000 or Product.query.filter(Product.image_url == '').first() is not None
-            if needs_reseed:
-                print("Re-seeding with updated subcategory data…")
-                Product.query.delete()
-                for p in PRODUCTS:
-                    db.session.add(Product(
-                        name=p['name'], price=p['price'], orig_price=p['orig_price'],
-                        category=p['category'], subcategory=p.get('subcategory', ''),
-                        emoji=p['emoji'], description=p['description'],
-                        rating=p['rating'], sold=p['sold'], is_flash=p['is_flash'],
-                        image_url=p.get('image_url', '')
-                    ))
-                db.session.commit()
-                print(f"Re-seeded {len(PRODUCTS)} products with proper subcategories.")
-            else:
-                print("Products already have correct subcategory data — skipping seed.")
     app.run(debug=True)
