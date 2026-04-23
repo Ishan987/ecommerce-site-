@@ -96,7 +96,6 @@ MAIL_SENDER   = os.environ.get('MAIL_SENDER')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
 
 #AI Myra
-
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY') 
 # PAYPAL CREDENTIALS
 PAYPAL_CLIENT_ID     = os.environ.get('PAYPAL_CLIENT_ID')     
